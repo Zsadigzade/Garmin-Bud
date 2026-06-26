@@ -1,8 +1,10 @@
-import type { SleepData } from "garmin-connect/dist/garmin/types/sleep.js";
+import type { SleepData } from "../garmin/garminApiTypes.js";
 import { appConfig } from "../config.js";
-import { withCache } from "../garmin/cache.js";
+import { buildToolCacheKey, withCache } from "../garmin/cache.js";
 import { withGarminClient } from "../garmin/client.js";
 import type { SleepNightSummary, ToolTextResult } from "../garmin/types.js";
+import type { ToolDefinition } from "./types.js";
+import { mapInBatches } from "../utils/batch.js";
 import {
   formatDuration,
   formatIsoDate,
@@ -35,16 +37,14 @@ function mapSleepData(date: Date, sleepData: SleepData): SleepNightSummary | nul
 async function fetchSleepNights(days: number): Promise<SleepNightSummary[]> {
   const dates = getDateRange(days);
 
-  const nights = await Promise.all(
-    dates.map(async (date) => {
-      return withGarminClient(async (client) => {
-        const sleepData = (await client.getSleepData(date)) as SleepData;
-        return mapSleepData(date, sleepData);
-      });
-    })
-  );
+  return withGarminClient(async (client) => {
+    const nights = await mapInBatches(dates, async (date) => {
+      const sleepData = await client.getSleepData(date);
+      return mapSleepData(date, sleepData);
+    });
 
-  return nights.filter((night): night is SleepNightSummary => night !== null);
+    return nights.filter((night): night is SleepNightSummary => night !== null);
+  });
 }
 
 function formatSleepNight(night: SleepNightSummary): string {
@@ -61,7 +61,7 @@ function formatSleepNight(night: SleepNightSummary): string {
 
 export async function getSleepDataTool(input: { nights?: number }): Promise<ToolTextResult> {
   const nights = input.nights ?? 7;
-  const cacheKey = `get_sleep_data:${nights}`;
+  const cacheKey = buildToolCacheKey("get_sleep_data", { nights });
 
   const sleepNights = await withCache(cacheKey, appConfig.cacheTtlSleep, async () => {
     return fetchSleepNights(nights);
@@ -99,7 +99,7 @@ export async function getSleepDataTool(input: { nights?: number }): Promise<Tool
   };
 }
 
-export const sleepToolDefinitions = [
+export const sleepToolDefinitions: ToolDefinition[] = [
   {
     name: "get_sleep_data",
     description: "Returns sleep duration, quality score, stage breakdown, and interruptions for recent nights.",

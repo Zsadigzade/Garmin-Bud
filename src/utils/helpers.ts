@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import type { ActivitySummary } from "../garmin/types.js";
 
 export type TrendDirection = "improving" | "declining" | "stable" | "insufficient_data";
 
@@ -25,6 +26,10 @@ export function getDateRange(days: number): Date[] {
   return dates;
 }
 
+export function getYesterday(): Date {
+  return DateTime.utc().minus({ days: 1 }).startOf("day").toJSDate();
+}
+
 export function getDatesBetween(startDate: string, endDate: string): Date[] {
   const start = DateTime.fromISO(startDate, { zone: "utc" }).startOf("day");
   const end = DateTime.fromISO(endDate, { zone: "utc" }).startOf("day");
@@ -46,6 +51,23 @@ export function getDatesBetween(startDate: string, endDate: string): Date[] {
   }
 
   return dates;
+}
+
+export function filterActivitiesByRange(
+  activities: ActivitySummary[],
+  startDate: string,
+  endDate: string
+): ActivitySummary[] {
+  const start = DateTime.fromISO(startDate, { zone: "utc" }).startOf("day");
+  const end = DateTime.fromISO(endDate, { zone: "utc" }).endOf("day");
+
+  return activities.filter((activity) => {
+    const activityDt = DateTime.fromISO(activity.startTimeLocal, { setZone: true });
+    if (!activityDt.isValid) {
+      return false;
+    }
+    return activityDt >= start && activityDt <= end;
+  });
 }
 
 export function formatDuration(seconds: number): string {
@@ -127,5 +149,13 @@ export function clamp(value: number, min: number, max: number): number {
 }
 
 export function hashParams(params: Record<string, unknown>): string {
-  return JSON.stringify(params);
+  const sortedEntries = Object.entries(params).sort(([left], [right]) => left.localeCompare(right));
+  return JSON.stringify(Object.fromEntries(sortedEntries));
+}
+
+export function sanitizeErrorMessage(message: string): string {
+  return message
+    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, "[email]")
+    .replace(/(?:[A-Za-z]:\\|\/)[^\s]+/g, "[path]")
+    .replace(/\bpassword[^\s]*/gi, "[redacted]");
 }

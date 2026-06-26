@@ -11,6 +11,15 @@ Query activities, sleep, heart rate, recovery, and body composition in natural l
 - **Cross-platform** — Windows, macOS, Linux (Node.js 20+)
 - **MCP stdio transport** — works with Claude Desktop and other MCP clients
 - **Automatic re-auth** — retries login when session expires
+- **Batched API calls** — concurrency-limited fetches to reduce rate limiting
+- **Graceful shutdown** — clean exit on SIGTERM/SIGINT with cache checkpoint
+- **22 tests** — auth, cache, helpers, recovery scoring, integration
+
+## Documentation
+
+- [Quickstart](./QUICKSTART.md) — 5-minute setup
+- [Project vault](./docs/vault/project-overview.md) — architecture, audit log, decisions
+- [Example prompts](./examples/prompts.md)
 
 ## Quick Start
 
@@ -106,6 +115,17 @@ npm run dev
 ### Testing note
 
 If your project path contains a `#` character, use `npm test` (Node test runner). Vitest may fail due to Vite path parsing — use `npm run test:vitest` only from paths without `#`.
+
+Use `.nvmrc` with nvm/fnm to auto-select Node 20.
+
+### Publishing
+
+Push a version tag to trigger npm publish and GitHub Release (requires `NPM_TOKEN` secret):
+
+```bash
+git tag v0.1.1
+git push origin v0.1.1
+```
 
 ## Architecture
 

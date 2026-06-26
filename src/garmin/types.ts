@@ -1,6 +1,6 @@
-import type { IGarminTokens } from "garmin-connect/dist/garmin/types.js";
+import type { StoredSessionTokens } from "./garminApiTypes.js";
 
-export type StoredSession = IGarminTokens;
+export type StoredSession = StoredSessionTokens;
 
 export interface ActivitySummary {
   activityId: number;
@@ -69,7 +69,14 @@ export interface ToolTextResult {
   text: string;
 }
 
-export interface GarminApiError extends Error {
-  statusCode?: number;
-  retryAfterSeconds?: number;
+export class GarminApiError extends Error {
+  readonly statusCode?: number;
+  readonly retryAfterSeconds?: number;
+
+  constructor(message: string, statusCode?: number, retryAfterSeconds?: number) {
+    super(message);
+    this.name = "GarminApiError";
+    this.statusCode = statusCode;
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
 }

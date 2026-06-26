@@ -4,33 +4,25 @@ import { bodyCompositionToolDefinitions } from "./bodyComposition.js";
 import { heartRateToolDefinitions } from "./heartRate.js";
 import { recoveryToolDefinitions } from "./recovery.js";
 import { sleepToolDefinitions } from "./sleep.js";
+import type { ToolDefinition } from "./types.js";
 import type { ToolTextResult } from "../garmin/types.js";
 import { parseIsoDate } from "../utils/helpers.js";
 
 // SECTION: Tool Registry
 
-type ToolHandler = (input: Record<string, unknown>) => Promise<ToolTextResult>;
-
-interface RegisteredTool {
-  name: string;
-  description: string;
-  inputSchema: Record<string, { type: string; description: string }>;
-  handler: ToolHandler;
-}
-
-export const toolRegistry: RegisteredTool[] = [
-  ...(activityToolDefinitions as unknown as RegisteredTool[]),
-  ...(sleepToolDefinitions as unknown as RegisteredTool[]),
-  ...(heartRateToolDefinitions as unknown as RegisteredTool[]),
-  ...(recoveryToolDefinitions as unknown as RegisteredTool[]),
-  ...(bodyCompositionToolDefinitions as unknown as RegisteredTool[]),
+export const toolRegistry: ToolDefinition[] = [
+  ...activityToolDefinitions,
+  ...sleepToolDefinitions,
+  ...heartRateToolDefinitions,
+  ...recoveryToolDefinitions,
+  ...bodyCompositionToolDefinitions,
 ];
 
-const toolHandlers = new Map<string, ToolHandler>(
-  toolRegistry.map((tool) => [tool.name, tool.handler as ToolHandler])
+const toolHandlers = new Map<string, ToolDefinition["handler"]>(
+  toolRegistry.map((tool) => [tool.name, tool.handler])
 );
 
-export function getToolByName(name: string): RegisteredTool | undefined {
+export function getToolByName(name: string): ToolDefinition | undefined {
   return toolRegistry.find((tool) => tool.name === name);
 }
 

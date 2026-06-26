@@ -1,7 +1,7 @@
 import type { GarminConnectInstance } from "./garminConnect.js";
 import { authenticateGarmin } from "./auth.js";
 import { logger } from "../utils/logger.js";
-import type { GarminApiError } from "./types.js";
+import { GarminApiError } from "./types.js";
 
 // SECTION: Garmin Client Singleton
 
@@ -49,7 +49,7 @@ function isAuthError(error: unknown): boolean {
   );
 }
 
-function isRateLimitError(error: unknown): GarminApiError | null {
+function toRateLimitError(error: unknown): GarminApiError | null {
   if (!(error instanceof Error)) {
     return null;
   }
@@ -59,12 +59,7 @@ function isRateLimitError(error: unknown): GarminApiError | null {
     return null;
   }
 
-  const rateLimitError = new Error(
-    "Garmin rate limit reached. Retry in about 60 seconds."
-  ) as GarminApiError;
-  rateLimitError.statusCode = 429;
-  rateLimitError.retryAfterSeconds = 60;
-  return rateLimitError;
+  return new GarminApiError("Garmin rate limit reached. Retry in about 60 seconds.", 429, 60);
 }
 
 export async function withGarminClient<T>(
@@ -74,7 +69,7 @@ export async function withGarminClient<T>(
     const client = await getGarminClient(false);
     return await operation(client);
   } catch (error) {
-    const rateLimitError = isRateLimitError(error);
+    const rateLimitError = toRateLimitError(error);
     if (rateLimitError) {
       throw rateLimitError;
     }
@@ -86,6 +81,6 @@ export async function withGarminClient<T>(
     logger.warn({ error }, "Garmin request failed auth, retrying once");
     resetGarminClient();
     const client = await getGarminClient(true);
-    return operation(client);
+    return await operation(client);
   }
 }

@@ -1,7 +1,9 @@
 import { appConfig } from "../config.js";
-import { withCache } from "../garmin/cache.js";
+import { buildToolCacheKey, withCache } from "../garmin/cache.js";
 import { withGarminClient } from "../garmin/client.js";
 import type { BodyCompositionEntry, ToolTextResult } from "../garmin/types.js";
+import type { ToolDefinition } from "./types.js";
+import { mapInBatches } from "../utils/batch.js";
 import {
   calculateTrend,
   formatIsoDate,
@@ -10,23 +12,12 @@ import {
 
 // SECTION: Body Composition Mapping
 
-interface WeightDataResponse {
-  dateWeightList: Array<{
-    calendarDate: string;
-    weight: number;
-    bodyFat: number | null;
-    muscleMass: number | null;
-    bmi: number | null;
-  }>;
-}
-
 async function fetchBodyComposition(days: number): Promise<BodyCompositionEntry[]> {
   const dates = getDateRange(days);
-  const entries: BodyCompositionEntry[] = [];
 
-  for (const date of dates) {
-    const dayEntries = await withGarminClient(async (client) => {
-      const weightData = (await client.getDailyWeightData(date)) as WeightDataResponse;
+  const entries = await withGarminClient(async (client) => {
+    const batches = await mapInBatches(dates, async (date) => {
+      const weightData = await client.getDailyWeightData(date);
       return weightData.dateWeightList.map((entry) => ({
         date: entry.calendarDate || formatIsoDate(date),
         weightKg: entry.weight ?? null,
@@ -36,8 +27,8 @@ async function fetchBodyComposition(days: number): Promise<BodyCompositionEntry[
       }));
     });
 
-    entries.push(...dayEntries);
-  }
+    return batches.flat();
+  });
 
   const uniqueByDate = new Map<string, BodyCompositionEntry>();
   for (const entry of entries) {
@@ -53,7 +44,7 @@ async function fetchBodyComposition(days: number): Promise<BodyCompositionEntry[
 
 export async function getBodyComposition(input: { days?: number }): Promise<ToolTextResult> {
   const days = input.days ?? 30;
-  const cacheKey = `get_body_composition:${days}`;
+  const cacheKey = buildToolCacheKey("get_body_composition", { days });
 
   const entries = await withCache(cacheKey, appConfig.cacheTtlStats, async () => {
     return fetchBodyComposition(days);
@@ -127,7 +118,7 @@ export async function getBodyComposition(input: { days?: number }): Promise<Tool
   };
 }
 
-export const bodyCompositionToolDefinitions = [
+export const bodyCompositionToolDefinitions: ToolDefinition[] = [
   {
     name: "get_body_composition",
     description: "Returns weight, body fat, and muscle mass trends over a time period.",

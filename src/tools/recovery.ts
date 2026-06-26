@@ -1,9 +1,10 @@
-import type { SleepData } from "garmin-connect/dist/garmin/types/sleep.js";
+import type { SleepData } from "../garmin/garminApiTypes.js";
 import { appConfig } from "../config.js";
-import { withCache } from "../garmin/cache.js";
+import { buildToolCacheKey, withCache } from "../garmin/cache.js";
 import { withGarminClient } from "../garmin/client.js";
 import type { RecoveryStatusResult, RecoveryWeights, ToolTextResult } from "../garmin/types.js";
-import { clamp, formatIsoDate } from "../utils/helpers.js";
+import type { ToolDefinition } from "./types.js";
+import { clamp, formatIsoDate, getDateRange, getYesterday } from "../utils/helpers.js";
 
 // SECTION: Recovery Scoring
 
@@ -14,7 +15,7 @@ const DEFAULT_WEIGHTS: RecoveryWeights = {
   restingHr: 0.2,
 };
 
-function normalizeWeights(weights?: Partial<RecoveryWeights>): RecoveryWeights {
+export function normalizeWeights(weights?: Partial<RecoveryWeights>): RecoveryWeights {
   const merged = { ...DEFAULT_WEIGHTS, ...weights };
   const total = merged.hrv + merged.sleep + merged.stress + merged.restingHr;
 
@@ -30,7 +31,7 @@ function normalizeWeights(weights?: Partial<RecoveryWeights>): RecoveryWeights {
   };
 }
 
-function scoreFromHrv(hrv: number | null, status: string | null): number {
+export function scoreFromHrv(hrv: number | null, status: string | null): number {
   if (hrv === null) {
     if (status === "BALANCED") {
       return 80;
@@ -53,7 +54,7 @@ function scoreFromHrv(hrv: number | null, status: string | null): number {
   return 40;
 }
 
-function scoreFromSleep(score: number | null, durationSeconds: number): number {
+export function scoreFromSleep(score: number | null, durationSeconds: number): number {
   if (score !== null) {
     return clamp(score, 0, 100);
   }
@@ -71,7 +72,7 @@ function scoreFromSleep(score: number | null, durationSeconds: number): number {
   return 35;
 }
 
-function scoreFromStress(stress: number | null): number {
+export function scoreFromStress(stress: number | null): number {
   if (stress === null) {
     return 60;
   }
@@ -88,7 +89,7 @@ function scoreFromStress(stress: number | null): number {
   return 35;
 }
 
-function scoreFromRestingHr(restingHr: number | null, baseline: number | null): number {
+export function scoreFromRestingHr(restingHr: number | null, baseline: number | null): number {
   if (restingHr === null) {
     return 60;
   }
@@ -119,7 +120,7 @@ function scoreFromRestingHr(restingHr: number | null, baseline: number | null): 
   return 35;
 }
 
-function buildRecoveryStatus(
+export function buildRecoveryStatus(
   components: RecoveryStatusResult["components"],
   weights: RecoveryWeights
 ): RecoveryStatusResult {
@@ -155,23 +156,25 @@ async function fetchRecoverySignals(): Promise<{
   baselineRestingHeartRate: number | null;
 }> {
   const today = new Date();
+  const candidates = [getYesterday(), ...getDateRange(3).slice(1)];
 
   return withGarminClient(async (client) => {
-    const [sleepData, heartRate] = await Promise.all([
-      client.getSleepData(today),
-      client.getHeartRate(today),
-    ]);
+    let sleepData: SleepData = { dailySleepDTO: undefined };
 
-    const typedSleepData = sleepData as SleepData;
-    const typedHeartRate = heartRate as {
-      restingHeartRate?: number;
-      lastSevenDaysAvgRestingHeartRate?: number;
-    };
+    for (const date of candidates) {
+      const candidate = await client.getSleepData(date);
+      if (candidate.dailySleepDTO) {
+        sleepData = candidate;
+        break;
+      }
+    }
+
+    const heartRate = await client.getHeartRate(today);
 
     return {
-      sleepData: typedSleepData,
-      restingHeartRate: typedHeartRate.restingHeartRate ?? null,
-      baselineRestingHeartRate: typedHeartRate.lastSevenDaysAvgRestingHeartRate ?? null,
+      sleepData,
+      restingHeartRate: heartRate.restingHeartRate ?? null,
+      baselineRestingHeartRate: heartRate.lastSevenDaysAvgRestingHeartRate ?? null,
     };
   });
 }
@@ -191,7 +194,12 @@ export async function getRecoveryStatus(input: {
     restingHr: input.resting_hr_weight,
   });
 
-  const cacheKey = `get_recovery_status:${JSON.stringify(weights)}`;
+  const cacheKey = buildToolCacheKey("get_recovery_status", {
+    hrv: weights.hrv,
+    sleep: weights.sleep,
+    stress: weights.stress,
+    restingHr: weights.restingHr,
+  });
 
   const recovery = await withCache(cacheKey, appConfig.cacheTtlStats, async () => {
     const signals = await fetchRecoverySignals();
@@ -235,7 +243,7 @@ export async function getRecoveryStatus(input: {
   };
 }
 
-export const recoveryToolDefinitions = [
+export const recoveryToolDefinitions: ToolDefinition[] = [
   {
     name: "get_recovery_status",
     description:

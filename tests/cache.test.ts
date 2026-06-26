@@ -7,19 +7,24 @@ import { GarminCache } from "../src/garmin/cache.js";
 
 describe("GarminCache", () => {
   let cache: GarminCache;
+  let tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "garmin-mcp-cache-"));
 
   afterEach(() => {
     cache.close();
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "garmin-mcp-cache-"));
   });
 
   it("returns null on cache miss", () => {
-    const dbPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "garmin-mcp-cache-")), "cache.db");
+    const dbPath = path.join(tempDir, "cache.db");
     cache = new GarminCache(dbPath);
     assert.equal(cache.get("missing:key"), null);
   });
 
   it("stores and retrieves cached values before ttl expiry", () => {
-    const dbPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "garmin-mcp-cache-")), "cache.db");
+    const dbPath = path.join(tempDir, "cache.db");
     cache = new GarminCache(dbPath);
     cache.set("tool:params", { value: 42 }, 3600);
 
@@ -27,8 +32,17 @@ describe("GarminCache", () => {
     assert.deepEqual(result, { value: 42 });
   });
 
+  it("buildKey produces stable hashes regardless of param key order", () => {
+    const dbPath = path.join(tempDir, "cache.db");
+    cache = new GarminCache(dbPath);
+
+    const first = cache.buildKey("tool", { b: 2, a: 1 });
+    const second = cache.buildKey("tool", { a: 1, b: 2 });
+    assert.equal(first, second);
+  });
+
   it("expires entries after ttl", () => {
-    const dbPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "garmin-mcp-cache-")), "cache.db");
+    const dbPath = path.join(tempDir, "cache.db");
     cache = new GarminCache(dbPath);
     cache.set("tool:expired", { value: 1 }, 0);
 
@@ -36,7 +50,7 @@ describe("GarminCache", () => {
   });
 
   it("clears all cache entries", () => {
-    const dbPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "garmin-mcp-cache-")), "cache.db");
+    const dbPath = path.join(tempDir, "cache.db");
     cache = new GarminCache(dbPath);
     cache.set("tool:a", { value: 1 }, 3600);
     cache.set("tool:b", { value: 2 }, 3600);

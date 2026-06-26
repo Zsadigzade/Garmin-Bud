@@ -122,6 +122,17 @@ export function getCache(): GarminCache {
   return cacheInstance;
 }
 
+export function closeCache(): void {
+  if (cacheInstance) {
+    cacheInstance.close();
+    cacheInstance = null;
+  }
+}
+
+export function buildToolCacheKey(tool: string, params: Record<string, unknown>): string {
+  return getCache().buildKey(tool, params);
+}
+
 export async function withCache<T>(
   key: string,
   ttlSeconds: number,

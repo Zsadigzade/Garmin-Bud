@@ -1,7 +1,9 @@
 import { appConfig } from "../config.js";
-import { withCache } from "../garmin/cache.js";
+import { buildToolCacheKey, withCache } from "../garmin/cache.js";
 import { withGarminClient } from "../garmin/client.js";
 import type { HeartRateDaySummary, ToolTextResult } from "../garmin/types.js";
+import type { ToolDefinition } from "./types.js";
+import { mapInBatches } from "../utils/batch.js";
 import {
   average,
   calculateTrend,
@@ -14,39 +16,32 @@ import {
 async function fetchHeartRateDays(days: number): Promise<HeartRateDaySummary[]> {
   const dates = getDateRange(days);
 
-  const summaries = await Promise.all(
-    dates.map(async (date) => {
-      return withGarminClient(async (client) => {
-        const heartRate = (await client.getHeartRate(date)) as {
-          restingHeartRate?: number;
-          maxHeartRate?: number;
-          minHeartRate?: number;
-          heartRateValues: Array<Array<{ heartrate: number }>>;
-        };
-        const samples = heartRate.heartRateValues
-          .flat()
-          .map((entry: { heartrate: number }) => entry.heartrate);
-        const averageHeartRate = samples.length > 0 ? average(samples) : null;
+  return withGarminClient(async (client) => {
+    const summaries = await mapInBatches(dates, async (date) => {
+      const heartRate = await client.getHeartRate(date);
+      const samples = heartRate.heartRateValues
+        .flat()
+        .map((entry) => entry.heartrate);
+      const averageHeartRate = samples.length > 0 ? average(samples) : null;
 
-        return {
-          date: formatIsoDate(date),
-          restingHeartRate: heartRate.restingHeartRate ?? null,
-          maxHeartRate: heartRate.maxHeartRate ?? null,
-          minHeartRate: heartRate.minHeartRate ?? null,
-          averageHeartRate,
-        };
-      });
-    })
-  );
+      return {
+        date: formatIsoDate(date),
+        restingHeartRate: heartRate.restingHeartRate ?? null,
+        maxHeartRate: heartRate.maxHeartRate ?? null,
+        minHeartRate: heartRate.minHeartRate ?? null,
+        averageHeartRate,
+      };
+    });
 
-  return summaries.filter((summary) => summary.restingHeartRate !== null);
+    return summaries.filter((summary) => summary.restingHeartRate !== null);
+  });
 }
 
 // SECTION: Tool Handler
 
 export async function getHeartRateTrends(input: { days?: number }): Promise<ToolTextResult> {
   const days = input.days ?? 30;
-  const cacheKey = `get_heart_rate_trends:${days}`;
+  const cacheKey = buildToolCacheKey("get_heart_rate_trends", { days });
 
   const summaries = await withCache(cacheKey, appConfig.cacheTtlStats, async () => {
     return fetchHeartRateDays(days);
@@ -87,7 +82,7 @@ export async function getHeartRateTrends(input: { days?: number }): Promise<Tool
   };
 }
 
-export const heartRateToolDefinitions = [
+export const heartRateToolDefinitions: ToolDefinition[] = [
   {
     name: "get_heart_rate_trends",
     description: "Returns resting, max, and average heart rate trends over a time period.",

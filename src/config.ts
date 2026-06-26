@@ -12,10 +12,16 @@ function readNumber(name: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+export function getSessionPath(): string {
+  return path.resolve(process.env.GARMIN_SESSION_PATH ?? ".garmin/session.json");
+}
+
 export const appConfig = {
   garminEmail: process.env.GARMIN_EMAIL ?? "",
   garminPassword: process.env.GARMIN_PASSWORD ?? "",
-  sessionPath: path.resolve(process.env.GARMIN_SESSION_PATH ?? ".garmin/session.json"),
+  get sessionPath(): string {
+    return getSessionPath();
+  },
   logPath: path.resolve(process.env.GARMIN_LOG_PATH ?? ".garmin/mcp.log"),
   cachePath: path.resolve(process.env.GARMIN_CACHE_PATH ?? ".garmin/cache.db"),
   cacheTtlActivities: readNumber("CACHE_TTL_ACTIVITIES", 1800),

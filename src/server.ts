@@ -2,7 +2,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { executeTool, toolRegistry, toolSchemas } from "./tools/index.js";
 import { logger } from "./utils/logger.js";
-import type { GarminApiError } from "./garmin/types.js";
+import { GarminApiError } from "./garmin/types.js";
+import { sanitizeErrorMessage } from "./utils/helpers.js";
+import { packageVersion } from "./version.js";
 
 // SECTION: MCP Server
 
@@ -14,7 +16,7 @@ export interface GarminMcpServer {
 export function createMcpServer(): GarminMcpServer {
   const mcpServer = new McpServer({
     name: "garmin-mcp",
-    version: "0.1.0",
+    version: packageVersion,
   });
 
   for (const tool of toolRegistry) {
@@ -71,19 +73,20 @@ export function createMcpServer(): GarminMcpServer {
   };
 }
 
-function formatToolError(error: unknown): string {
+export function formatToolError(error: unknown): string {
+  if (error instanceof GarminApiError) {
+    if (error.statusCode === 429) {
+      return `${error.message} Retry in ${error.retryAfterSeconds ?? 60} seconds.`;
+    }
+    return sanitizeErrorMessage(error.message);
+  }
+
   if (error instanceof Error) {
-    const apiError = error as GarminApiError;
-
-    if (apiError.statusCode === 429) {
-      return `${error.message} Retry in ${apiError.retryAfterSeconds ?? 60} seconds.`;
-    }
-
     if (error.message.toLowerCase().includes("authentication")) {
-      return `${error.message} Run "garmin-mcp auth" to re-authenticate.`;
+      return `${sanitizeErrorMessage(error.message)} Run "garmin-mcp auth" to re-authenticate.`;
     }
 
-    return error.message;
+    return sanitizeErrorMessage(error.message);
   }
 
   return "An unexpected error occurred while executing the Garmin tool.";

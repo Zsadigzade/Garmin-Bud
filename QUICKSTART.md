@@ -94,3 +94,4 @@ garmin-mcp auth          # Re-login if session expired
 
 - Read [README.md](./README.md) for full API reference
 - Try prompts from [examples/prompts.md](./examples/prompts.md)
+- Review [docs/vault/](./docs/vault/project-overview.md) for architecture and audit notes

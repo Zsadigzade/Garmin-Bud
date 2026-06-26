@@ -6,22 +6,18 @@ import { appConfig, assertGarminCredentials } from "../config.js";
 import { logger } from "../utils/logger.js";
 import type { StoredSession } from "./types.js";
 
-function getSessionPath(): string {
-  return path.resolve(process.env.GARMIN_SESSION_PATH ?? ".garmin/session.json");
-}
-
 // SECTION: Session Persistence
 
 export function sessionDirectory(): string {
-  return path.dirname(getSessionPath());
+  return path.dirname(appConfig.sessionPath);
 }
 
 export function sessionExists(): boolean {
-  return fs.existsSync(getSessionPath());
+  return fs.existsSync(appConfig.sessionPath);
 }
 
 export function readStoredSession(): StoredSession | null {
-  const sessionPath = getSessionPath();
+  const sessionPath = appConfig.sessionPath;
 
   if (!fs.existsSync(sessionPath)) {
     return null;
@@ -43,13 +39,13 @@ export function readStoredSession(): StoredSession | null {
 }
 
 export function writeStoredSession(session: StoredSession): void {
-  const sessionPath = getSessionPath();
+  const sessionPath = appConfig.sessionPath;
   fs.mkdirSync(path.dirname(sessionPath), { recursive: true });
   fs.writeFileSync(sessionPath, JSON.stringify(session, null, 2), "utf8");
 }
 
 export function clearStoredSession(): void {
-  const sessionPath = getSessionPath();
+  const sessionPath = appConfig.sessionPath;
   if (fs.existsSync(sessionPath)) {
     fs.unlinkSync(sessionPath);
   }

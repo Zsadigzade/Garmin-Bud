@@ -1,7 +1,22 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { toolRegistry } from "../src/tools/index.js";
-import { calculateTrend, parseIsoDate } from "../src/utils/helpers.js";
+import {
+  buildRecoveryStatus,
+  normalizeWeights,
+  scoreFromHrv,
+  scoreFromSleep,
+} from "../src/tools/recovery.js";
+import {
+  calculateTrend,
+  filterActivitiesByRange,
+  hashParams,
+  parseIsoDate,
+  sanitizeErrorMessage,
+} from "../src/utils/helpers.js";
+import type { ActivitySummary } from "../src/garmin/types.js";
+import { formatToolError } from "../src/server.js";
+import { GarminApiError } from "../src/garmin/types.js";
 
 describe("tool registry", () => {
   it("registers all six MVP tools", () => {
@@ -30,5 +45,83 @@ describe("helpers", () => {
 
   it("rejects invalid ISO dates", () => {
     assert.throws(() => parseIsoDate("invalid"), /Invalid date/);
+  });
+
+  it("hashes params with stable key order", () => {
+    assert.equal(hashParams({ b: 2, a: 1 }), hashParams({ a: 1, b: 2 }));
+  });
+
+  it("filters activities by ISO date range", () => {
+    const activities: ActivitySummary[] = [
+      {
+        activityId: 1,
+        name: "Morning Run",
+        type: "running",
+        startTimeLocal: "2026-06-05T08:00:00.000",
+        distanceMeters: 5000,
+        durationSeconds: 1800,
+        averageHeartRate: 150,
+        maxHeartRate: 170,
+        elevationGainMeters: 10,
+        calories: 300,
+        averageSpeedMps: 2.7,
+      },
+      {
+        activityId: 2,
+        name: "Evening Ride",
+        type: "cycling",
+        startTimeLocal: "2026-06-20T18:00:00.000",
+        distanceMeters: 20000,
+        durationSeconds: 3600,
+        averageHeartRate: 130,
+        maxHeartRate: 160,
+        elevationGainMeters: 100,
+        calories: 500,
+        averageSpeedMps: 5.5,
+      },
+    ];
+
+    const filtered = filterActivitiesByRange(activities, "2026-06-01", "2026-06-10");
+    assert.equal(filtered.length, 1);
+    assert.equal(filtered[0]?.name, "Morning Run");
+  });
+
+  it("sanitizes sensitive details from error messages", () => {
+    const sanitized = sanitizeErrorMessage(
+      "Failed for user@example.com at C:/Users/secret/.env with password123"
+    );
+    assert.match(sanitized, /\[email\]/);
+    assert.match(sanitized, /\[path\]/);
+    assert.doesNotMatch(sanitized, /user@example.com/);
+  });
+});
+
+describe("recovery scoring", () => {
+  it("builds a recovered status for strong component scores", () => {
+    const weights = normalizeWeights();
+    const result = buildRecoveryStatus(
+      {
+        hrvScore: 95,
+        sleepScore: 90,
+        stressScore: 85,
+        restingHrScore: 90,
+      },
+      weights
+    );
+
+    assert.equal(result.status, "recovered");
+    assert.ok(result.score >= 80);
+  });
+
+  it("scores sleep from duration when score is missing", () => {
+    assert.equal(scoreFromSleep(null, 8 * 3600), 90);
+    assert.equal(scoreFromHrv(50, null), 80);
+  });
+});
+
+describe("tool errors", () => {
+  it("formats rate limit errors with retry guidance", () => {
+    const message = formatToolError(new GarminApiError("Rate limited", 429, 60));
+    assert.match(message, /Retry in 60 seconds/);
   });
 });

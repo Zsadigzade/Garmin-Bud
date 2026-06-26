@@ -1,25 +1,49 @@
 import { Command } from "commander";
 import { authenticateGarmin, clearStoredSession, sessionExists } from "./garmin/auth.js";
-import { getCache } from "./garmin/cache.js";
+import { closeCache, getCache } from "./garmin/cache.js";
 import { resetGarminClient } from "./garmin/client.js";
 import { createMcpServer } from "./server.js";
-import { logger } from "./utils/logger.js";
+import { assertGarminCredentials, appConfig } from "./config.js";
+import { configureLogger, logger } from "./utils/logger.js";
+import { packageVersion } from "./version.js";
 
 // SECTION: CLI Commands
 
 async function runStart(): Promise<void> {
+  assertGarminCredentials();
+  configureLogger(appConfig.logPath);
+
   const server = createMcpServer();
+
+  const shutdown = async (signal: string): Promise<void> => {
+    logger.info({ signal }, "Shutting down Garmin MCP server");
+    await server.close();
+    closeCache();
+    process.exit(0);
+  };
+
+  process.once("SIGTERM", () => {
+    void shutdown("SIGTERM");
+  });
+  process.once("SIGINT", () => {
+    void shutdown("SIGINT");
+  });
+  process.once("exit", () => {
+    closeCache();
+  });
+
   await server.start();
 }
 
 async function runAuth(): Promise<void> {
+  configureLogger(appConfig.logPath);
   clearStoredSession();
   resetGarminClient();
   await authenticateGarmin(true);
   console.log("Garmin authentication successful. Session saved.");
 }
 
-async function runCacheClear(): Promise<void> {
+function runCacheClear(): void {
   const cache = getCache();
   const removed = cache.clear();
   console.log(`Cleared ${removed} cache entries.`);
@@ -41,7 +65,7 @@ export function createCliProgram(): Command {
   program
     .name("garmin-mcp")
     .description("MCP server for Garmin Connect fitness data")
-    .version("0.1.0");
+    .version(packageVersion);
 
   program
     .command("start")
@@ -73,9 +97,9 @@ export function createCliProgram(): Command {
   cacheCommand
     .command("clear")
     .description("Clear all cached Garmin data")
-    .action(async () => {
+    .action(() => {
       try {
-        await runCacheClear();
+        runCacheClear();
       } catch (error) {
         logger.error({ error }, "Failed to clear cache");
         process.exitCode = 1;
