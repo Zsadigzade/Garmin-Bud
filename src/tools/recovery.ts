@@ -211,7 +211,7 @@ export async function getRecoveryStatus(input: {
         signals.sleepData.hrvStatus ?? null
       ),
       sleepScore: scoreFromSleep(
-        sleep?.sleepScores.overall?.value ?? null,
+        sleep?.sleepScores?.overall?.value ?? null,
         sleep?.sleepTimeSeconds ?? 0
       ),
       stressScore: scoreFromStress(sleep?.avgSleepStress ?? null),

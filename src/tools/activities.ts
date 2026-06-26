@@ -10,8 +10,8 @@ import {
   formatDuration,
   formatIsoDate,
   formatPaceMetersPerSecond,
+  parseActivityLocalDateTime,
 } from "../utils/helpers.js";
-import { DateTime } from "luxon";
 
 const ACTIVITIES_PAGE_SIZE = 100;
 const MAX_ACTIVITIES_FETCH = 500;
@@ -125,7 +125,7 @@ export async function getActivitiesRange(input: Record<string, unknown>): Promis
 
   const lines = activities.map((activity, index) => {
     const activityDate =
-      DateTime.fromISO(activity.startTimeLocal, { setZone: true }).toISODate() ??
+      parseActivityLocalDateTime(activity.startTimeLocal).toISODate() ??
       formatIsoDate(new Date(activity.startTimeLocal));
 
     return [

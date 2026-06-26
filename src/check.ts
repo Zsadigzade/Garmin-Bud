@@ -18,7 +18,7 @@ interface ToolCheckResult {
 
 function buildDefaultToolChecks(): ToolCheckCase[] {
   const endDate = DateTime.now().toISODate();
-  const startDate = DateTime.now().minus({ days: 7 }).toISODate();
+  const startDate = DateTime.now().minus({ days: 30 }).toISODate();
 
   return [
     { name: "get_latest_activity", args: {} },
@@ -49,7 +49,7 @@ function summarizeToolResult(name: string, text: string): { ok: boolean; summary
 
   if (name === "get_latest_activity") {
     const activityLine = normalized.split("\n").find((line) => line.startsWith("Activity:"));
-    const dateLine = normalized.split("\n").find((line) => line.startsWith("Start:"));
+    const dateLine = normalized.split("\n").find((line) => line.startsWith("Date:"));
     const distanceLine = normalized.split("\n").find((line) => line.startsWith("Distance:"));
     const parts = [activityLine, distanceLine, dateLine].filter(Boolean);
     return {

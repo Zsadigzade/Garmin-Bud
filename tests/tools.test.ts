@@ -11,6 +11,7 @@ import {
   calculateTrend,
   filterActivitiesByRange,
   hashParams,
+  parseActivityLocalDateTime,
   parseIsoDate,
   sanitizeErrorMessage,
 } from "../src/utils/helpers.js";
@@ -84,6 +85,28 @@ describe("helpers", () => {
     const filtered = filterActivitiesByRange(activities, "2026-06-01", "2026-06-10");
     assert.equal(filtered.length, 1);
     assert.equal(filtered[0]?.name, "Morning Run");
+  });
+
+  it("filters activities with Garmin local datetime format", () => {
+    const activities: ActivitySummary[] = [
+      {
+        activityId: 3,
+        name: "Prague Tennis",
+        type: "tennis",
+        startTimeLocal: "2026-06-25 18:36:20",
+        distanceMeters: 3940,
+        durationSeconds: 3600,
+        averageHeartRate: 120,
+        maxHeartRate: 150,
+        elevationGainMeters: 0,
+        calories: 400,
+        averageSpeedMps: 1.1,
+      },
+    ];
+
+    const filtered = filterActivitiesByRange(activities, "2026-05-27", "2026-06-26");
+    assert.equal(filtered.length, 1);
+    assert.equal(parseActivityLocalDateTime("2026-06-25 18:36:20").isValid, true);
   });
 
   it("sanitizes sensitive details from error messages", () => {

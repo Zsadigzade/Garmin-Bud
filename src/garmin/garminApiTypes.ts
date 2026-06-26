@@ -48,7 +48,7 @@ export interface SleepData {
     remSleepSeconds: number;
     awakeCount: number;
     avgSleepStress?: number | null;
-    sleepScores: {
+    sleepScores?: {
       overall?: {
         value: number;
       };
@@ -61,7 +61,7 @@ export interface HeartRateData {
   maxHeartRate?: number;
   minHeartRate?: number;
   lastSevenDaysAvgRestingHeartRate?: number;
-  heartRateValues: Array<Array<{ heartrate: number }>>;
+  heartRateValues?: Array<Array<{ heartrate: number } | null> | null> | null;
 }
 
 export interface WeightDataResponse {

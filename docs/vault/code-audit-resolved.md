@@ -106,10 +106,61 @@ See [branding.md](./branding.md) for full identity reference.
 
 ### Still not covered (future work)
 
-- Live Garmin API tool handler tests (requires mocks or credentials)
+- Automated live Garmin API tests in CI (requires credentials or mocks)
 - `withGarminClient` auth-retry against real 401 responses
 - SIGTERM handler end-to-end
 - MCP protocol message structure validation
+
+---
+
+## Post-audit: usability + live testing (2026-06-26)
+
+Added setup wizard, live diagnostics, and fixed bugs found during first real-account test.
+
+### New commands
+
+| Command | File | Purpose |
+|---------|------|---------|
+| `garmin-bud setup` | `src/setup.ts` | Interactive credentials, auth, MCP client config |
+| `garmin-bud check` | `src/check.ts` | Live API test for all 6 tools |
+
+### New modules
+
+| File | Purpose |
+|------|---------|
+| `src/mcpConfig.ts` | Detect Cursor / Claude Desktop, merge `garmin-bud` into MCP JSON |
+| `src/setup.ts` | readline wizard, password masking, optional live check |
+| `src/check.ts` | Tool-by-tool pass/fail summary |
+
+### Live-test bugs found and fixed
+
+| Tool | Symptom | Root cause | Fix |
+|------|---------|------------|-----|
+| `get_sleep_data` | `Cannot read properties of undefined (reading 'overall')` | Garmin omits `sleepScores` on some nights | Optional chaining `sleepScores?.overall`; per-night try/catch |
+| `get_heart_rate_trends` | `Cannot read properties of null (reading 'heartrate')` | Null entries in `heartRateValues` arrays | Null-safe flat/filter; skip days with no data |
+| `get_activities_range` | No activities despite recent workout | Garmin `startTimeLocal` uses `yyyy-MM-dd HH:mm:ss`, not ISO | Added `parseActivityLocalDateTime()` (ISO + SQL formats) |
+| `recovery.ts` | TS build error after type change | `sleepScores` made optional | `sleep?.sleepScores?.overall?.value` |
+
+### Config changes
+
+- `appConfig.garminEmail` / `garminPassword` changed to getters (reload after setup writes `.env`)
+- Added `writeEnvFile()`, `getDistIndexPath()`, `getProjectRoot()`
+
+### Test suite
+
+Expanded from 25 → **26 tests** (added `tests/mcpConfig.test.ts` + Garmin datetime filter test).
+
+### Live test result
+
+All 6 tools pass via `garmin-bud check` against real account. Cursor in-chat MCP blocked by `better-sqlite3` Node ABI mismatch — documented in architecture and project overview.
+
+### Still open after live test
+
+| Issue | Notes |
+|-------|-------|
+| Cursor Node ABI | Rebuild native module for Cursor's bundled Node |
+| Plaintext password in `mcp.json` | Setup wizard writes credentials to MCP config `env` |
+| ECG permanent MFA | Some accounts cannot disable 2FA — incompatible with library |
 
 ## Phase 2 blockers (current)
 

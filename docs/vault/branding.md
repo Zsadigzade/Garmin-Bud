@@ -10,6 +10,7 @@
 | **Tagline** | Talk to your Garmin data. |
 | **One-liner** | MCP server that connects Garmin Connect to Claude, Cursor, and other AI assistants |
 | **Tone** | Friendly, approachable, general audience (not dev-only) |
+| **Primary onboarding** | `garmin-bud setup` — no MCP knowledge required |
 
 ## Technical identifiers
 

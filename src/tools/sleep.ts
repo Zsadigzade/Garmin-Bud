@@ -27,7 +27,7 @@ function mapSleepData(date: Date, sleepData: SleepData): SleepNightSummary | nul
     lightSleepSeconds: dailySleep.lightSleepSeconds,
     remSleepSeconds: dailySleep.remSleepSeconds,
     awakeCount: dailySleep.awakeCount,
-    sleepScore: dailySleep.sleepScores.overall?.value ?? null,
+    sleepScore: dailySleep.sleepScores?.overall?.value ?? null,
     avgSleepStress: dailySleep.avgSleepStress ?? null,
     avgOvernightHrv: sleepData.avgOvernightHrv ?? null,
     hrvStatus: sleepData.hrvStatus ?? null,
@@ -39,8 +39,12 @@ async function fetchSleepNights(days: number): Promise<SleepNightSummary[]> {
 
   return withGarminClient(async (client) => {
     const nights = await mapInBatches(dates, async (date) => {
-      const sleepData = await client.getSleepData(date);
-      return mapSleepData(date, sleepData);
+      try {
+        const sleepData = await client.getSleepData(date);
+        return mapSleepData(date, sleepData);
+      } catch {
+        return null;
+      }
     });
 
     return nights.filter((night): night is SleepNightSummary => night !== null);

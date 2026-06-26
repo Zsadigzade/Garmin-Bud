@@ -18,22 +18,35 @@ async function fetchHeartRateDays(days: number): Promise<HeartRateDaySummary[]> 
 
   return withGarminClient(async (client) => {
     const summaries = await mapInBatches(dates, async (date) => {
-      const heartRate = await client.getHeartRate(date);
-      const samples = heartRate.heartRateValues
-        .flat()
-        .map((entry) => entry.heartrate);
-      const averageHeartRate = samples.length > 0 ? average(samples) : null;
+      try {
+        const heartRate = await client.getHeartRate(date);
+        if (!heartRate) {
+          return null;
+        }
 
-      return {
-        date: formatIsoDate(date),
-        restingHeartRate: heartRate.restingHeartRate ?? null,
-        maxHeartRate: heartRate.maxHeartRate ?? null,
-        minHeartRate: heartRate.minHeartRate ?? null,
-        averageHeartRate,
-      };
+        const samples = (heartRate.heartRateValues ?? [])
+          .flat()
+          .filter((entry): entry is { heartrate: number } => entry != null)
+          .map((entry) => entry.heartrate);
+        const averageHeartRate = samples.length > 0 ? average(samples) : null;
+
+        if (heartRate.restingHeartRate == null && averageHeartRate == null) {
+          return null;
+        }
+
+        return {
+          date: formatIsoDate(date),
+          restingHeartRate: heartRate.restingHeartRate ?? null,
+          maxHeartRate: heartRate.maxHeartRate ?? null,
+          minHeartRate: heartRate.minHeartRate ?? null,
+          averageHeartRate,
+        };
+      } catch {
+        return null;
+      }
     });
 
-    return summaries.filter((summary) => summary.restingHeartRate !== null);
+    return summaries.filter((summary): summary is HeartRateDaySummary => summary !== null);
   });
 }
 

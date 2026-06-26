@@ -53,20 +53,35 @@ export function getDatesBetween(startDate: string, endDate: string): Date[] {
   return dates;
 }
 
+export function parseActivityLocalDateTime(value: string): DateTime {
+  const fromIso = DateTime.fromISO(value, { setZone: true });
+  if (fromIso.isValid) {
+    return fromIso;
+  }
+
+  const fromSql = DateTime.fromSQL(value, { setZone: true });
+  if (fromSql.isValid) {
+    return fromSql;
+  }
+
+  return DateTime.invalid("unparsable");
+}
+
 export function filterActivitiesByRange(
   activities: ActivitySummary[],
   startDate: string,
   endDate: string
 ): ActivitySummary[] {
   const start = DateTime.fromISO(startDate, { zone: "utc" }).startOf("day");
-  const end = DateTime.fromISO(endDate, { zone: "utc" }).endOf("day");
+  const end = DateTime.fromISO(endDate, { zone: "utc" }).startOf("day");
 
   return activities.filter((activity) => {
-    const activityDt = DateTime.fromISO(activity.startTimeLocal, { setZone: true });
-    if (!activityDt.isValid) {
+    const activityDay = parseActivityLocalDateTime(activity.startTimeLocal).startOf("day");
+    if (!activityDay.isValid) {
       return false;
     }
-    return activityDt >= start && activityDt <= end;
+
+    return activityDay.toMillis() >= start.toMillis() && activityDay.toMillis() <= end.toMillis();
   });
 }
 
