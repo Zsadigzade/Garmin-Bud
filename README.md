@@ -43,6 +43,44 @@ The setup wizard walks you through credentials, authentication, and connecting C
 
 Full walkthrough: [QUICKSTART.md](./QUICKSTART.md)
 
+## Claude Code plugin (recommended)
+
+Install as a [Claude Code plugin](https://code.claude.com/docs/en/plugins) — skills **and** MCP server in one step:
+
+```bash
+/plugin marketplace add Zsadigzade/garmin-bud
+/plugin install garmin-bud@garmin-bud
+```
+
+Set credentials, then restart Claude Code:
+
+```bash
+export GARMIN_EMAIL="your@email.com"
+export GARMIN_PASSWORD="yourpassword"
+```
+
+| Command | What it does |
+|---------|----------------|
+| `/garmin-bud:garmin-bud-setup` | First-time setup and diagnostics |
+| `/garmin-bud:garmin-bud` | Ask about workouts, sleep, recovery, HR, stress, VO2 max |
+
+Plugin files live in [`plugin/`](./plugin/). See [`plugin/README.md`](./plugin/README.md).
+
+## Claude Code skills (in-repo)
+
+This repo also ships project skills in [`.claude/skills/`](./.claude/skills/) for development without installing the plugin:
+
+| Command | What it does |
+|---------|----------------|
+| `/garmin-bud-setup` | Install, authenticate, configure MCP, run live check |
+| `/garmin-bud` | Ask about workouts, sleep, recovery, HR, stress, VO2 max |
+
+Open the repo in **Claude Code** (`claude` in this directory) — skills load automatically.
+
+To use skills in **every** project without the plugin, copy them to `~/.claude/skills/`.
+
+After setup, restart your MCP client and try `/garmin-bud` with *"What did I do today?"*
+
 ## Connect to Claude Desktop
 
 Edit `claude_desktop_config.json`:

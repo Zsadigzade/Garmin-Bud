@@ -1,0 +1,9 @@
+{
+  "name": "garmin-bud",
+  "version": "0.1.0",
+  "description": "Talk to your Garmin Connect data — MCP server plus setup and fitness coach skills for Claude Code.",
+  "author": {
+    "name": "Zsadigzade"
+  },
+  "homepage": "https://github.com/Zsadigzade/garmin-bud#readme"
+}

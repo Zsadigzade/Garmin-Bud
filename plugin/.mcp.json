@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "garmin-bud": {
+      "command": "garmin-bud",
+      "args": ["start"],
+      "env": {
+        "GARMIN_EMAIL": "${GARMIN_EMAIL}",
+        "GARMIN_PASSWORD": "${GARMIN_PASSWORD}"
+      }
+    }
+  }
+}

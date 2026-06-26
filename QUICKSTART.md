@@ -33,6 +33,25 @@ After setup, **restart your MCP client completely** (Cursor or Claude Desktop), 
 - "How's my sleep been this week?"
 - "Am I recovered enough to train hard?"
 
+### Claude Code: plugin or slash commands
+
+**Plugin (recommended)** — skills + MCP in one install:
+
+```bash
+/plugin marketplace add Zsadigzade/garmin-bud
+/plugin install garmin-bud@garmin-bud
+```
+
+Then `/garmin-bud:garmin-bud-setup` and `/garmin-bud:garmin-bud`.
+
+**In-repo skills** — if you cloned the repo and run `claude` here:
+
+1. `/garmin-bud-setup` — guided install + MCP config + live check
+2. Restart MCP client
+3. `/garmin-bud` — ask any fitness question
+
+See [`plugin/README.md`](./plugin/README.md) for plugin details.
+
 ## Verify without an MCP client
 
 After setup, you can confirm Garmin Connect access directly:
