@@ -12,7 +12,8 @@ Claude / Cursor → MCP Server (garmin-bud, stdio) → Tool Registry → Cache (
 
 ## Startup sequence
 
-1. `garmin-bud start` → `runStart()` in `cli.ts`
+1. `garmin-bud setup` → interactive wizard in `setup.ts` (credentials, auth, MCP client config)
+2. `garmin-bud start` → `runStart()` in `cli.ts`
 2. `assertGarminCredentials()` — fail fast if `.env` is missing credentials
 3. `configureLogger()` — enable file logging to `.garmin/mcp.log`
 4. Register SIGTERM/SIGINT/exit handlers
@@ -24,7 +25,10 @@ Claude / Cursor → MCP Server (garmin-bud, stdio) → Tool Registry → Cache (
 ```
 src/
 ├── index.ts          # CLI entry (#!/usr/bin/env node)
-├── cli.ts            # Commander: start, auth, cache clear, status
+├── cli.ts            # Commander: setup, check, start, auth, cache clear, status
+├── setup.ts          # Interactive first-time setup wizard
+├── check.ts          # Live diagnostics for all 6 tools
+├── mcpConfig.ts      # Cursor / Claude Desktop MCP config detection + merge
 ├── server.ts         # MCP server (id: garmin-bud), sanitized tool errors
 ├── config.ts         # dotenv, getSessionPath(), assertGarminCredentials()
 ├── version.ts        # reads version from package.json at runtime
@@ -115,7 +119,7 @@ Requires `NPM_TOKEN` secret for publish.
 - No HTTP/SSE MCP transport (blocks remote/Docker sidecar)
 - No in-flight request deduplication across concurrent tool calls
 - Module singletons (`clientInstance`, `cacheInstance`) shared in tests unless reset
-- Tool handlers not tested against live Garmin API
+- Tool handlers testable via `garmin-bud check` against live Garmin API
 - MFA unsupported by underlying `garmin-connect` library
 
 ## Related docs

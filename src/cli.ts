@@ -6,6 +6,8 @@ import { createMcpServer } from "./server.js";
 import { assertGarminCredentials, appConfig } from "./config.js";
 import { configureLogger, logger } from "./utils/logger.js";
 import { packageVersion } from "./version.js";
+import { runSetup } from "./setup.js";
+import { printLiveCheckResults, runLiveCheck } from "./check.js";
 
 // SECTION: CLI Commands
 
@@ -59,6 +61,15 @@ async function runStatus(): Promise<void> {
   console.log(`Expired cache entries: ${cacheStats.expiredEntries}`);
 }
 
+async function runCheck(): Promise<void> {
+  const results = await runLiveCheck();
+  printLiveCheckResults(results);
+
+  if (results.some((result) => !result.ok)) {
+    process.exitCode = 1;
+  }
+}
+
 export function createCliProgram(): Command {
   const program = new Command();
 
@@ -102,6 +113,32 @@ export function createCliProgram(): Command {
         runCacheClear();
       } catch (error) {
         logger.error({ error }, "Failed to clear cache");
+        process.exitCode = 1;
+      }
+    });
+
+  program
+    .command("setup")
+    .description("Interactive first-time setup — credentials, auth, and MCP client config")
+    .action(async () => {
+      try {
+        await runSetup();
+      } catch (error) {
+        logger.error({ error }, "Setup failed");
+        console.error(error instanceof Error ? error.message : "Setup failed");
+        process.exitCode = 1;
+      }
+    });
+
+  program
+    .command("check")
+    .description("Run live diagnostics against all GarminBud tools")
+    .action(async () => {
+      try {
+        await runCheck();
+      } catch (error) {
+        logger.error({ error }, "Live check failed");
+        console.error(error instanceof Error ? error.message : "Live check failed");
         process.exitCode = 1;
       }
     });

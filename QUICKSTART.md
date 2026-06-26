@@ -8,7 +8,59 @@ Get GarminBud running in about 5 minutes.
 - A Garmin Connect account with synced device data
 - Garmin Connect **MFA disabled** (the underlying library does not support MFA yet)
 
-## 1. Install
+## Recommended: one-command setup
+
+```bash
+git clone https://github.com/Zsadigzade/garmin-bud.git
+cd garmin-bud
+npm install
+npm run build
+npx garmin-bud setup
+```
+
+The setup wizard will:
+
+1. Ask for your Garmin Connect email and password
+2. Save credentials to `.env`
+3. Authenticate with Garmin Connect
+4. Detect Cursor and Claude Desktop on your machine
+5. Offer to add GarminBud to your MCP client config automatically
+6. Optionally run a live API check against all 6 tools
+
+After setup, **restart your MCP client completely** (Cursor or Claude Desktop), then ask:
+
+- "What did I do today?"
+- "How's my sleep been this week?"
+- "Am I recovered enough to train hard?"
+
+## Verify without an MCP client
+
+After setup, you can confirm Garmin Connect access directly:
+
+```bash
+garmin-bud check
+```
+
+Example output:
+
+```text
+GarminBud live check
+
+  get_latest_activity       ✓  Activity: Morning Run, Distance: 5.2 km, Start: ...
+  get_activities_range      ✓  3 activities found
+  get_sleep_data            ✓  7 nights retrieved
+  get_heart_rate_trends     ✓  30-day trend loaded
+  get_recovery_status       ✓  Score: 72 (Ready to train)
+  get_body_composition      ✗  No body composition data found for the last 30 days.
+
+All 6 checks passed. GarminBud is ready to use.
+```
+
+## Manual setup (alternative)
+
+If you prefer to configure files yourself:
+
+### 1. Install
 
 ```bash
 git clone https://github.com/Zsadigzade/garmin-bud.git
@@ -16,7 +68,7 @@ cd garmin-bud
 npm install
 ```
 
-## 2. Configure credentials
+### 2. Configure credentials
 
 ```bash
 cp .env.example .env
@@ -29,7 +81,7 @@ GARMIN_EMAIL=your@email.com
 GARMIN_PASSWORD=yourpassword
 ```
 
-## 3. Build and authenticate
+### 3. Build and authenticate
 
 ```bash
 npm run build
@@ -38,24 +90,12 @@ npx garmin-bud auth
 
 You should see: `Garmin authentication successful. Session saved.`
 
-## 4. Start the server
+### 4. Connect to Cursor or Claude Desktop
 
-```bash
-npm run start
-```
+**Cursor:** `%USERPROFILE%\.cursor\mcp.json` (Windows) or `~/.cursor/mcp.json` (macOS/Linux)
 
-For development with auto-reload:
-
-```bash
-npm run dev
-```
-
-## 5. Connect to Claude Desktop
-
-Edit your Claude Desktop MCP config:
-
-**Windows:** `%APPDATA%\Claude\claude_desktop_config.json`  
-**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Claude Desktop (Windows):** `%APPDATA%\Claude\claude_desktop_config.json`  
+**Claude Desktop (macOS):** `~/Library/Application Support/Claude/claude_desktop_config.json`
 
 ```json
 {
@@ -72,23 +112,27 @@ Edit your Claude Desktop MCP config:
 }
 ```
 
-Restart Claude Desktop.
-
-## 6. Test it
-
-Ask Claude:
-
-- "What did I do today?"
-- "How's my sleep been this week?"
-- "Am I recovered enough to train hard?"
+Restart your MCP client.
 
 ## Useful commands
 
 ```bash
+garmin-bud setup         # Interactive first-time setup (recommended)
+garmin-bud check         # Live diagnostics against all 6 tools
 garmin-bud status        # Check session + cache
 garmin-bud cache clear   # Force fresh data fetch
 garmin-bud auth          # Re-login if session expired
+garmin-bud start         # Start MCP server manually (stdio)
 ```
+
+## Troubleshooting setup
+
+| Issue | Fix |
+|-------|-----|
+| Authentication failed | Verify email/password; disable MFA at connect.garmin.com |
+| MCP client doesn't see tools | Restart the client completely (not just reload window) |
+| Stale data | Run `garmin-bud cache clear` |
+| `dist/index.js` not found | Run `npm run build` |
 
 ## Next steps
 

@@ -35,12 +35,11 @@ See [examples/prompts.md](./examples/prompts.md) for more ideas.
 git clone https://github.com/Zsadigzade/garmin-bud.git
 cd garmin-bud
 npm install
-cp .env.example .env
-# Edit .env with your Garmin Connect email and password
 npm run build
-npx garmin-bud auth
-npm run start
+npx garmin-bud setup
 ```
+
+The setup wizard walks you through credentials, authentication, and connecting Cursor or Claude Desktop — no MCP config editing required.
 
 Full walkthrough: [QUICKSTART.md](./QUICKSTART.md)
 
@@ -95,6 +94,8 @@ Restart your MCP client, then start asking questions.
 ## CLI
 
 ```bash
+garmin-bud setup          # Interactive first-time setup (recommended)
+garmin-bud check          # Live diagnostics against all 6 tools
 garmin-bud start          # Start the MCP server (stdio)
 garmin-bud auth           # Force re-authentication
 garmin-bud cache clear    # Clear cached data
@@ -139,7 +140,7 @@ garmin-bud --version      # Print version
 ```bash
 npm install
 npm run build
-npm test          # 22 tests via Node test runner
+npm test          # 25 tests via Node test runner
 npm run lint
 npm run dev       # Start with auto-reload
 ```

@@ -32,7 +32,7 @@ An open-source MCP (Model Context Protocol) server that exposes Garmin Connect f
 - Automatic re-auth when sessions expire
 - Batched API calls (concurrency 6) to reduce rate limiting
 - Graceful shutdown on SIGTERM/SIGINT
-- 22 tests — auth, cache, helpers, recovery scoring, integration
+- 25 tests — auth, cache, helpers, recovery scoring, integration, MCP config
 
 ## MVP tools (6)
 
@@ -50,6 +50,8 @@ Sample prompts: [examples/prompts.md](../../examples/prompts.md)
 ## CLI commands
 
 ```bash
+garmin-bud setup          # Interactive first-time setup (credentials + MCP clients)
+garmin-bud check          # Live diagnostics against all 6 Garmin tools
 garmin-bud start          # Start MCP server (stdio)
 garmin-bud auth           # Force re-authentication
 garmin-bud cache clear    # Clear cached data
