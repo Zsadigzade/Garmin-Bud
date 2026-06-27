@@ -9,9 +9,9 @@ function Stop-PortListener([int]$Port) {
     $connections = netstat -ano | Select-String ":$Port\s"
     foreach ($line in $connections) {
         if ($line -match "\sLISTENING\s+(\d+)\s*$") {
-            $pid = [int]$Matches[1]
-            Write-Host "Stopping process on port $Port (PID $pid)..."
-            Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue
+            $processId = [int]$Matches[1]
+            Write-Host "Stopping process on port $Port (PID $processId)..."
+            Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
         }
     }
 }
@@ -55,23 +55,49 @@ $tunnelJob = Start-Job -ScriptBlock {
 }
 
 $tunnelUrl = $null
-for ($i = 0; $i -lt 30; $i++) {
+for ($i = 0; $i -lt 45; $i++) {
     Start-Sleep -Seconds 1
     $output = Receive-Job $tunnelJob -ErrorAction SilentlyContinue
-    if ($output -match "(https://[a-z0-9-]+\.trycloudflare\.com)") {
-        $tunnelUrl = $Matches[1]
+    if (-not $output) {
+        continue
+    }
+
+    # Receive-Job may return an array; -match on arrays does not populate $Matches.
+    $outputText = ($output | ForEach-Object { $_.ToString() }) -join "`n"
+    $match = [regex]::Match(
+        $outputText,
+        "https://[-a-z0-9]+\.trycloudflare\.com",
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase
+    )
+
+    if ($match.Success) {
+        $tunnelUrl = $match.Value
         break
     }
 }
 
 if (-not $tunnelUrl) {
-    Write-Host "Tunnel started but URL not detected yet. Check tunnel job output."
+    Write-Host "Tunnel started but URL not detected yet. Recent tunnel output:"
+    $pendingOutput = Receive-Job $tunnelJob -ErrorAction SilentlyContinue
+    if ($pendingOutput) {
+        $pendingOutput | ForEach-Object { Write-Host $_ }
+    }
+    Write-Host ""
+    Write-Host "Look for a line like: https://xxxx.trycloudflare.com"
 } else {
+    $setupPath = Join-Path $RepoRoot ".garmin\watch-setup.json"
+    New-Item -ItemType Directory -Force -Path (Split-Path $setupPath) | Out-Null
+    @{ serverUrl = $tunnelUrl; updatedAt = (Get-Date).ToUniversalTime().ToString("o") } |
+        ConvertTo-Json |
+        Set-Content -Path $setupPath -Encoding utf8
+
     Write-Host ""
     Write-Host "=== Watch widget settings (Garmin Connect Mobile) ==="
     Write-Host "Server URL: $tunnelUrl"
+    Write-Host "           (base URL only - do NOT add /api/watch)"
     Write-Host "API Key:    (copy GARMIN_MCP_API_KEY from .env)"
     Write-Host ""
+    Write-Host "Saved to: $setupPath"
     Write-Host "Test: curl -H `"Authorization: Bearer YOUR_KEY`" $tunnelUrl/api/watch"
 }
 

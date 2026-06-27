@@ -44,6 +44,13 @@ function sendJson(res: ServerResponse, statusCode: number, body: unknown): void 
   res.end(JSON.stringify(body));
 }
 
+function normalizePathname(pathname: string): string {
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return pathname.slice(0, -1);
+  }
+  return pathname;
+}
+
 function isAuthorized(req: IncomingMessage): boolean {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
@@ -152,13 +159,27 @@ export function createHttpMcpServer(): HttpMcpServer {
 
       httpServer = http.createServer(async (req, res) => {
         const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+        const pathname = normalizePathname(url.pathname);
 
-        if (url.pathname === "/health") {
+        if (pathname === "/" || pathname === "") {
+          sendJson(res, 200, {
+            service: "garmin-bud",
+            endpoints: {
+              health: "/health",
+              watch: "/api/watch",
+              mcp: "/mcp",
+            },
+            message: "Use GET /api/watch with Authorization: Bearer token for the watch widget.",
+          });
+          return;
+        }
+
+        if (pathname === "/health") {
           sendJson(res, 200, { status: "ok", service: "garmin-bud" });
           return;
         }
 
-        if (url.pathname === "/api/watch") {
+        if (pathname === "/api/watch") {
           if (req.method !== "GET") {
             sendJson(res, 405, { error: "Method Not Allowed", message: "Use GET for /api/watch." });
             return;
@@ -186,7 +207,7 @@ export function createHttpMcpServer(): HttpMcpServer {
           return;
         }
 
-        if (url.pathname === "/mcp") {
+        if (pathname === "/mcp") {
           if (req.method !== "POST") {
             sendJson(res, 405, {
               jsonrpc: "2.0",

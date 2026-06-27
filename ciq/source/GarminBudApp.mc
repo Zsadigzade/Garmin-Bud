@@ -164,7 +164,15 @@ class GarminBudApp extends Application.AppBase {
             url = url.substring(0, url.length() - 1);
         }
 
-        url = url + "/api/watch";
+        var watchPath = "/api/watch";
+        if (url.length() >= watchPath.length()) {
+            var tail = url.substring(url.length() - watchPath.length(), url.length());
+            if (!tail.equals(watchPath)) {
+                url = url + watchPath;
+            }
+        } else {
+            url = url + watchPath;
+        }
 
         setStatus("loading");
         WatchUi.requestUpdate();
