@@ -39,17 +39,35 @@ Sync your watch after saving settings.
 
 ## Build and sideload
 
-From this `ciq/` directory:
+**Quick build** (uses active SDK from Garmin Connect IQ SDK Manager):
 
-```bash
-# Replace fr255 with your watch model ID
-monkeyc -f monkey.jungle -o bin/GarminBud.prg -y /path/to/developer_key.der -d fr255
-
-# Sideload to simulator or device
-monkeydo bin/GarminBud.prg fr255
+```powershell
+cd "C:\Users\zsadi\Desktop\#Garmin\ciq"
+.\build.ps1
+# Default device: fenix847mm (Fenix 8 47mm)
 ```
 
-Supported devices are listed in `manifest.xml` (Forerunner, Fenix, Epix, Venu, vivoactive). Add your device ID to the manifest if it is not listed.
+**SDK location on this machine:**
+
+```
+C:\Users\zsadi\AppData\Roaming\Garmin\ConnectIQ\Sdks\connectiq-sdk-win-9.2.0-2026-06-09-92a1605b2\bin\
+```
+
+**Manual build:**
+
+```powershell
+$SdkBin = "$env:APPDATA\Garmin\ConnectIQ\Sdks\connectiq-sdk-win-9.2.0-2026-06-09-92a1605b2\bin"
+monkeyc -f monkey.jungle -o bin/GarminBud.prg -y developer_key.der -d fenix847mm -w
+```
+
+First run generates `developer_key.der` via OpenSSL if missing.
+
+**Simulator:**
+
+```powershell
+monkeydo bin/GarminBud.prg fenix847mm
+connectiq
+```
 
 ## Using the widget
 

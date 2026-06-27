@@ -42,20 +42,36 @@ function isNoData(text: string): boolean {
   return /^No .+ found/i.test(text.trim());
 }
 
+function averageComponentScores(text: string): number | null {
+  const components = [...text.matchAll(/- (?:HRV|Sleep|Stress|Resting HR):\s*(\d+)/gi)];
+  if (components.length === 0) {
+    return null;
+  }
+
+  const total = components.reduce((sum, match) => sum + Number.parseInt(match[1] ?? "", 10), 0);
+  return Math.round(total / components.length);
+}
+
 function parseRecovery(text: string): WatchRecovery | null {
   if (isNoData(text)) {
     return null;
   }
 
-  const scoreMatch = text.match(/Recovery score:\s*(\d+)/i);
-  const statusMatch = text.match(/Recovery score:\s*\d+\/100\s*\(([^)]+)\)/i);
-
-  if (!scoreMatch) {
+  const headerMatch = text.match(/Recovery score:\s*(null|\d+)\/100\s*(?:\(([^)]+)\))?/i);
+  if (!headerMatch) {
     return null;
   }
 
-  const score = Number.parseInt(scoreMatch[1] ?? "", 10);
-  const status = statusMatch?.[1]?.trim().toLowerCase() ?? "";
+  const rawScore = headerMatch[1]?.toLowerCase();
+  const status = headerMatch[2]?.trim().toLowerCase() ?? "";
+  const score =
+    rawScore === "null" || !rawScore
+      ? averageComponentScores(text)
+      : Number.parseInt(rawScore, 10);
+
+  if (score === null || !Number.isFinite(score)) {
+    return null;
+  }
 
   let label = "Moderate";
   if (status === "recovered") {

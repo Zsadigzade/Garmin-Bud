@@ -14,6 +14,7 @@ GarminBud project knowledge lives in an external Obsidian vault, not in this rep
 | Branding | `reference/Branding.md` |
 | Code audit log | `reference/Code Audit — Resolved.md` |
 | Web MCP setup | `reference/Web MCP Setup.md` |
+| Connect IQ watch widget | `reference/Connect IQ Watch Widget.md` |
 
 Open the vault in Obsidian and start at `05-Projects/garmin-bud/HOME.md`.
 

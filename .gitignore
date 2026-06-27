@@ -2,6 +2,9 @@ node_modules/
 dist/
 .env
 .garmin/
+ciq/bin/
+ciq/developer_key.pem
+ciq/developer_key.der
 *.log
 coverage/
 .DS_Store

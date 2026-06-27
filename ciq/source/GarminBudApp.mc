@@ -20,7 +20,7 @@ class GarminBudApp extends Application.AppBase {
     function onStop(state as Dictionary or Null) as Void {
     }
 
-    function getInitialView() as [Views] or [Views, InputDelegates] or [WatchUi.Views] or [WatchUi.Views, WatchUi.InputDelegates] {
+    function getInitialView() {
         return [ new GarminBudView(), new GarminBudDelegate() ];
     }
 

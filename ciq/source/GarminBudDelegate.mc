@@ -1,4 +1,5 @@
 import Toybox.Application;
+import Toybox.Lang;
 import Toybox.WatchUi;
 
 class GarminBudDelegate extends WatchUi.BehaviorDelegate {
