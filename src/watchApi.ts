@@ -1,4 +1,5 @@
 import { executeTool } from "./tools/index.js";
+import { generateDailyInsight } from "./promptApi.js";
 
 // SECTION: Watch API
 
@@ -51,6 +52,7 @@ export interface WatchSummary {
   stress: WatchStress | null;
   vo2max: WatchVo2Max | null;
   heart_rate: WatchHeartRate | null;
+  ai_insight: string | null;
   updated_at: string;
 }
 
@@ -303,7 +305,7 @@ export async function buildWatchSummary(): Promise<WatchSummary> {
   const vo2max = vo2Text ? parseVo2Max(vo2Text) : null;
   const heartRate = heartRateText ? parseHeartRate(heartRateText) : null;
 
-  return {
+  const partialSummary = {
     daily_overview: buildDailyOverview(recovery, sleep, stress, vo2max),
     recovery,
     sleep,
@@ -311,6 +313,11 @@ export async function buildWatchSummary(): Promise<WatchSummary> {
     stress,
     vo2max,
     heart_rate: heartRate,
+    ai_insight: null as string | null,
     updated_at: new Date().toISOString(),
   };
+
+  partialSummary.ai_insight = await generateDailyInsight(partialSummary);
+
+  return partialSummary;
 }

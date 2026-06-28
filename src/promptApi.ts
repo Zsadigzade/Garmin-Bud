@@ -1,0 +1,129 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { randomBytes } from "node:crypto";
+import { createPromptJob, getPromptJob, updatePromptJob } from "./appDb.js";
+import { appConfig } from "./config.js";
+import { buildWatchSummary } from "./watchApi.js";
+import { logger } from "./utils/logger.js";
+
+// SECTION: Prompt API — Claude integration
+
+const MODEL = "claude-haiku-4-5-20251001";
+const MAX_TOKENS = 300;
+
+function buildJobId(): string {
+  return randomBytes(12).toString("hex");
+}
+
+function formatHealthContext(summary: Awaited<ReturnType<typeof buildWatchSummary>>): string {
+  const lines: string[] = ["Current health snapshot:"];
+
+  if (summary.recovery) {
+    lines.push(`- Recovery: ${summary.recovery.score}/100 (${summary.recovery.label})`);
+  }
+  if (summary.sleep) {
+    lines.push(`- Sleep last night: ${summary.sleep.hours}h${summary.sleep.score ? `, score ${summary.sleep.score}` : ""} (${summary.sleep.label})`);
+  }
+  if (summary.stress) {
+    lines.push(`- Avg stress (7d): ${summary.stress.avg} (${summary.stress.label})`);
+  }
+  if (summary.vo2max) {
+    lines.push(`- VO2 Max: ${summary.vo2max.value} (${summary.vo2max.trend})`);
+  }
+  if (summary.heart_rate) {
+    lines.push(`- Resting HR: ${summary.heart_rate.resting} bpm`);
+  }
+  if (summary.activity) {
+    lines.push(`- Last activity: ${summary.activity.name}${summary.activity.duration_min ? `, ${summary.activity.duration_min}min` : ""}${summary.activity.distance_km ? `, ${summary.activity.distance_km}km` : ""}`);
+  }
+
+  return lines.join("\n");
+}
+
+async function callClaude(prompt: string, healthContext: string): Promise<string> {
+  const apiKey = appConfig.anthropicApiKey;
+  if (!apiKey) {
+    throw new Error("ANTHROPIC_API_KEY not configured. Set it in the dashboard or .env file.");
+  }
+
+  const client = new Anthropic({ apiKey });
+
+  const message = await client.messages.create({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    system: `You are a concise fitness coach assistant integrated into a Garmin smartwatch.
+Answer in 2-3 short sentences maximum. Be direct and actionable. No markdown formatting.
+${healthContext}`,
+    messages: [{ role: "user", content: prompt }],
+  });
+
+  const block = message.content[0];
+  if (block?.type !== "text") {
+    throw new Error("Unexpected response type from Claude");
+  }
+  return block.text.trim();
+}
+
+export interface SubmitPromptResult {
+  job_id: string;
+}
+
+export function submitPrompt(prompt: string): SubmitPromptResult {
+  const id = buildJobId();
+  createPromptJob(id, prompt);
+
+  // Fire-and-forget — process asynchronously
+  processPromptJob(id, prompt).catch((err) => {
+    logger.error({ err, id }, "Prompt job processing failed unexpectedly");
+  });
+
+  return { job_id: id };
+}
+
+async function processPromptJob(id: string, prompt: string): Promise<void> {
+  updatePromptJob(id, { status: "running" });
+  try {
+    const summary = await buildWatchSummary();
+    const healthContext = formatHealthContext(summary);
+    const result = await callClaude(prompt, healthContext);
+    updatePromptJob(id, { status: "done", result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.error({ err, id }, "Prompt job failed");
+    updatePromptJob(id, { status: "error", error: message });
+  }
+}
+
+export interface PromptJobStatus {
+  status: "pending" | "running" | "done" | "error";
+  result?: string;
+  error?: string;
+}
+
+export function getPromptStatus(id: string): PromptJobStatus | null {
+  const job = getPromptJob(id);
+  if (!job) return null;
+  return {
+    status: job.status,
+    result: job.result ?? undefined,
+    error: job.error ?? undefined,
+  };
+}
+
+export async function generateDailyInsight(
+  summary: Awaited<ReturnType<typeof buildWatchSummary>>
+): Promise<string | null> {
+  const apiKey = appConfig.anthropicApiKey;
+  if (!apiKey) return null;
+
+  try {
+    const healthContext = formatHealthContext(summary);
+    const result = await callClaude(
+      "Give me one sentence of actionable advice for today based on my health data.",
+      healthContext
+    );
+    return result;
+  } catch (err) {
+    logger.warn({ err }, "Daily insight generation failed");
+    return null;
+  }
+}

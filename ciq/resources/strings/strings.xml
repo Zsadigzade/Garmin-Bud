@@ -1,7 +1,6 @@
 <strings>
     <string id="AppName">GarminBud</string>
     <string id="ServerUrlTitle">Server URL</string>
-    <string id="ApiKeyTitle">API Key</string>
     <string id="CardOverview">Overview</string>
     <string id="CardRecovery">Recovery</string>
     <string id="CardSleep">Sleep</string>
@@ -9,8 +8,10 @@
     <string id="CardStress">Stress</string>
     <string id="CardVo2Max">VO2 Max</string>
     <string id="CardHeartRate">Heart Rate</string>
+    <string id="CardAiInsight">AI Insight</string>
+    <string id="CardAskAi">Ask AI</string>
     <string id="Loading">Loading...</string>
-    <string id="ConfigError">Set URL + API key in Garmin Connect app settings</string>
+    <string id="ConfigError">Set Server URL in Garmin Connect app settings</string>
     <string id="FetchError">Could not reach GarminBud</string>
     <string id="NoData">No data</string>
     <string id="TapHint">Tap or swipe to switch</string>
@@ -22,4 +23,19 @@
     <string id="LabelVo2">VO2</string>
     <string id="LabelResting">Resting</string>
     <string id="LabelMax">Max</string>
+    <string id="PairingTitle">Pair Watch</string>
+    <string id="PairingInstructions">Open dashboard &amp; enter code:</string>
+    <string id="PairingPolling">Waiting for approval...</string>
+    <string id="PairingError">Pairing failed. Tap to retry.</string>
+    <string id="AiThinking">Asking Claude...</string>
+    <string id="AiError">Claude unavailable</string>
+    <string id="AiNoInsight">No insight today</string>
+    <string id="AskPrompt1">Should I train today?</string>
+    <string id="AskPrompt2">How is my recovery?</string>
+    <string id="AskPrompt3">Optimize my sleep tonight</string>
+    <string id="AskPrompt4">Summarize my week</string>
+    <string id="AskPrompt5">Am I overtraining?</string>
+    <string id="AskHint">Tap to ask Claude</string>
+    <string id="AskSelectHint">Tap to select</string>
+    <string id="ResultPrefix">Claude:</string>
 </strings>

@@ -56,6 +56,8 @@ export function writeEnvFile(credentials: { email: string; password: string; api
     "CACHE_TTL_ACTIVITIES=1800",
     "CACHE_TTL_SLEEP=7200",
     "CACHE_TTL_STATS=3600",
+    "# ANTHROPIC_API_KEY=sk-ant-...",
+    "# GARMIN_PUBLIC_URL=https://your-tunnel.trycloudflare.com",
     "",
   ];
 
@@ -87,6 +89,20 @@ export const appConfig = {
   },
   get mcpApiKey(): string {
     return process.env.GARMIN_MCP_API_KEY ?? "";
+  },
+  get anthropicApiKey(): string {
+    return process.env.ANTHROPIC_API_KEY ?? "";
+  },
+  get publicUrl(): string {
+    const envUrl = (process.env.GARMIN_PUBLIC_URL ?? "").replace(/\/$/, "");
+    if (envUrl) return envUrl;
+    try {
+      const setupPath = path.join(projectRoot, ".garmin", "watch-setup.json");
+      const data = JSON.parse(fs.readFileSync(setupPath, "utf8")) as { serverUrl?: string };
+      return (data.serverUrl ?? "").replace(/\/$/, "");
+    } catch {
+      return "";
+    }
   },
 };
 

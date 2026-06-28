@@ -92,13 +92,25 @@ if (-not $tunnelUrl) {
         Set-Content -Path $setupPath -Encoding utf8
 
     Write-Host ""
-    Write-Host "=== Watch widget settings (Garmin Connect Mobile) ==="
-    Write-Host "Server URL: $tunnelUrl"
-    Write-Host "           (base URL only - do NOT add /api/watch)"
-    Write-Host "API Key:    (copy GARMIN_MCP_API_KEY from .env)"
+    # Read API key from .env for dashboard link
+    $apiKey = ""
+    if (Test-Path (Join-Path $RepoRoot ".env")) {
+        $envLine = Get-Content (Join-Path $RepoRoot ".env") | Select-String "^GARMIN_MCP_API_KEY="
+        if ($envLine) { $apiKey = ($envLine -replace "^GARMIN_MCP_API_KEY=", "").Trim() }
+    }
+
+    Write-Host "=== Watch widget setup ==="
+    Write-Host "1. In Garmin Connect app -> Widget settings:"
+    Write-Host "   Server URL: $tunnelUrl"
+    Write-Host ""
+    Write-Host "2. Open dashboard to pair watch + set Claude key:"
+    if ($apiKey) {
+        Write-Host "   $tunnelUrl/dashboard?token=$apiKey"
+    } else {
+        Write-Host "   $tunnelUrl/dashboard?token=YOUR_GARMIN_MCP_API_KEY"
+    }
     Write-Host ""
     Write-Host "Saved to: $setupPath"
-    Write-Host "Test: curl -H `"Authorization: Bearer YOUR_KEY`" $tunnelUrl/api/watch"
 }
 
 Write-Host ""

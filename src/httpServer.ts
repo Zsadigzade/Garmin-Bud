@@ -2,10 +2,14 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import http from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { closeCache } from "./garmin/cache.js";
+import { closeAppDb, setSetting } from "./appDb.js";
 import { assertGarminCredentials, assertMcpApiKey, appConfig } from "./config.js";
 import { createMcpServerInstance } from "./server.js";
 import { configureLogger, logger } from "./utils/logger.js";
 import { buildWatchSummary, type WatchSummary } from "./watchApi.js";
+import { requestPairing, checkPairStatus, approvePairing } from "./pairApi.js";
+import { submitPrompt, getPromptStatus } from "./promptApi.js";
+import { renderDashboard, renderPairSuccess, renderPairError } from "./dashboard.js";
 
 // SECTION: HTTP MCP Server
 
@@ -51,14 +55,11 @@ function normalizePathname(pathname: string): string {
   return pathname;
 }
 
-function isAuthorized(req: IncomingMessage): boolean {
+function isAuthorized(req: IncomingMessage, queryToken?: string): boolean {
   const header = req.headers.authorization;
-  if (!header?.startsWith("Bearer ")) {
-    return false;
-  }
-
-  const token = header.slice("Bearer ".length).trim();
-  return token.length > 0 && token === appConfig.mcpApiKey;
+  const headerToken = header?.startsWith("Bearer ") ? header.slice("Bearer ".length).trim() : null;
+  const token = headerToken ?? queryToken ?? null;
+  return token !== null && token.length > 0 && token === appConfig.mcpApiKey;
 }
 
 async function getCachedWatchSummary(): Promise<WatchSummary> {
@@ -157,6 +158,12 @@ export function createHttpMcpServer(): HttpMcpServer {
       assertMcpApiKey();
       configureLogger(appConfig.logPath);
 
+      // Load Claude key saved via dashboard into process.env if not already set
+      const savedClaudeKey = (await import("./appDb.js")).getSetting("anthropic_api_key");
+      if (savedClaudeKey && !process.env["ANTHROPIC_API_KEY"]) {
+        process.env["ANTHROPIC_API_KEY"] = savedClaudeKey;
+      }
+
       httpServer = http.createServer(async (req, res) => {
         const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
         const pathname = normalizePathname(url.pathname);
@@ -167,15 +174,170 @@ export function createHttpMcpServer(): HttpMcpServer {
             endpoints: {
               health: "/health",
               watch: "/api/watch",
+              pair: "/api/pair",
+              prompt: "/api/prompt",
+              dashboard: "/dashboard",
               mcp: "/mcp",
             },
-            message: "Use GET /api/watch with Authorization: Bearer token for the watch widget.",
+            message: "Dashboard: GET /dashboard?token=YOUR_API_KEY",
           });
           return;
         }
 
         if (pathname === "/health") {
           sendJson(res, 200, { status: "ok", service: "garmin-bud" });
+          return;
+        }
+
+        // --- Pairing ---
+
+        if (pathname === "/api/pair" && req.method === "POST") {
+          const result = requestPairing();
+          sendJson(res, 200, result);
+          return;
+        }
+
+        if (pathname.startsWith("/api/pair/") && pathname.endsWith("/status") && req.method === "GET") {
+          const code = pathname.slice("/api/pair/".length, -"/status".length);
+          const status = checkPairStatus(code);
+          if (!status) {
+            sendJson(res, 404, { error: "Pair code not found or expired" });
+          } else {
+            sendJson(res, 200, status);
+          }
+          return;
+        }
+
+        // --- Prompt ---
+
+        if (pathname === "/api/prompt" && req.method === "POST") {
+          if (!isAuthorized(req)) {
+            res.setHeader("WWW-Authenticate", 'Bearer realm="garmin-bud"');
+            sendJson(res, 401, { error: "Unauthorized" });
+            return;
+          }
+
+          let body: unknown;
+          try {
+            body = await readJsonBody(req);
+          } catch {
+            sendJson(res, 400, { error: "Invalid JSON body" });
+            return;
+          }
+
+          if (typeof body !== "object" || body === null || typeof (body as Record<string, unknown>)["prompt"] !== "string") {
+            sendJson(res, 400, { error: "Missing prompt field" });
+            return;
+          }
+
+          const prompt = ((body as Record<string, unknown>)["prompt"] as string).trim();
+          if (prompt.length === 0 || prompt.length > 500) {
+            sendJson(res, 400, { error: "Prompt must be 1–500 characters" });
+            return;
+          }
+
+          const result = submitPrompt(prompt);
+          sendJson(res, 202, result);
+          return;
+        }
+
+        if (pathname.startsWith("/api/prompt/") && req.method === "GET") {
+          if (!isAuthorized(req)) {
+            res.setHeader("WWW-Authenticate", 'Bearer realm="garmin-bud"');
+            sendJson(res, 401, { error: "Unauthorized" });
+            return;
+          }
+
+          const jobId = pathname.slice("/api/prompt/".length);
+          const status = getPromptStatus(jobId);
+          if (!status) {
+            sendJson(res, 404, { error: "Job not found" });
+          } else {
+            sendJson(res, 200, status);
+          }
+          return;
+        }
+
+        // --- Dashboard ---
+
+        const queryToken = url.searchParams.get("token") ?? undefined;
+
+        if (pathname === "/dashboard") {
+          if (!isAuthorized(req, queryToken)) {
+            res.setHeader("WWW-Authenticate", 'Bearer realm="garmin-bud"');
+            res.writeHead(401, { "Content-Type": "text/html" });
+            res.end("<h1>401 Unauthorized</h1><p>Add <code>Authorization: Bearer YOUR_API_KEY</code> header, or use the URL <code>/dashboard?token=YOUR_API_KEY</code></p>");
+            return;
+          }
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+          res.end(renderDashboard());
+          return;
+        }
+
+        if (pathname === "/dashboard/pair/approve" && req.method === "POST") {
+          if (!isAuthorized(req, queryToken)) {
+            res.setHeader("WWW-Authenticate", 'Bearer realm="garmin-bud"');
+            res.writeHead(401, { "Content-Type": "text/html" });
+            res.end("<h1>401 Unauthorized</h1>");
+            return;
+          }
+
+          let formCode: string | null = null;
+          try {
+            const raw = await readJsonBody(req) as Record<string, string> | undefined;
+            if (raw && typeof raw["code"] === "string") {
+              formCode = raw["code"];
+            }
+          } catch {
+            // Try reading as URL-encoded form
+          }
+
+          if (!formCode) {
+            // Read as URL-encoded form
+            const chunks: Buffer[] = [];
+            for await (const chunk of req) {
+              chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+            }
+            const raw = Buffer.concat(chunks).toString("utf8");
+            const params = new URLSearchParams(raw);
+            formCode = params.get("code");
+          }
+
+          if (!formCode) {
+            res.writeHead(400, { "Content-Type": "text/html; charset=utf-8" });
+            res.end(renderPairError("Missing code parameter."));
+            return;
+          }
+
+          const ok = approvePairing(formCode);
+          res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+          res.end(ok ? renderPairSuccess(formCode) : renderPairError("Code not found or expired."));
+          return;
+        }
+
+        if (pathname === "/dashboard/settings" && req.method === "POST") {
+          if (!isAuthorized(req, queryToken)) {
+            res.setHeader("WWW-Authenticate", 'Bearer realm="garmin-bud"');
+            res.writeHead(401, { "Content-Type": "text/html" });
+            res.end("<h1>401 Unauthorized</h1>");
+            return;
+          }
+
+          const chunks: Buffer[] = [];
+          for await (const chunk of req) {
+            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+          }
+          const raw = Buffer.concat(chunks).toString("utf8");
+          const params = new URLSearchParams(raw);
+          const key = params.get("anthropic_api_key")?.trim();
+
+          if (key && key.length > 0) {
+            setSetting("anthropic_api_key", key);
+            process.env["ANTHROPIC_API_KEY"] = key;
+          }
+
+          res.writeHead(302, { Location: "/dashboard" });
+          res.end();
           return;
         }
 
@@ -260,6 +422,7 @@ export function createHttpMcpServer(): HttpMcpServer {
       httpServer = null;
       watchApiCache = null;
       closeCache();
+      closeAppDb();
     },
   };
 }
