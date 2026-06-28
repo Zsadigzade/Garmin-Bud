@@ -3,7 +3,7 @@
 <iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
     <iq:application
         entry="GarminBudApp"
-        id="4275741b-c52a-4b44-951e-bb2af99b6148"
+        id="e9204b53-2eea-4851-9071-8ce7e6839589"
         launcherIcon="@Drawables.LauncherIcon"
         minSdkVersion="3.2.0"
         name="@Strings.AppName"

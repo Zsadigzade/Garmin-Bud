@@ -67,7 +67,7 @@ Setup guide: https://github.com/Zsadigzade/garmin-bud
 
 1. Create a Garmin developer account at https://developer.garmin.com
 2. Sign the Connect IQ developer agreement
-3. App registered at https://apps.garmin.com/apps/4275741b-c52a-4b44-951e-bb2af99b6148
+3. App registered at https://apps.garmin.com/apps/e9204b53-2eea-4851-9071-8ce7e6839589
 4. Build a release binary:
 
 ```powershell
